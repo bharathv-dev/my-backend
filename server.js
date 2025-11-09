@@ -2,43 +2,60 @@ import express from "express";
 import cors from "cors";
 import crypto from "crypto";
 import fetch from "node-fetch";
-import { error, log } from "console";
 import dotenv from "dotenv";
-const app = express();
-app.use(cors());
-app.use(express.json());
-
 
 dotenv.config();
+const app = express();
 
+// ✅ CORS setup (allow all origins for now)
+app.use(
+  cors({
+    origin: "*", // allow all origins (you can later restrict to your frontend domain)
+    methods: ["GET", "POST"],
+    allowedHeaders: ["Content-Type"],
+  })
+);
+
+app.use(express.json());
+
+// ✅ Environment variables (with defaults for testing)
 const MERCHANT_ID = process.env.MERCHANT_ID || "PGTESTPAYUAT86";
 const SALT_KEY = process.env.SALT_KEY || "96434309-7796-489d-8924-ab56988a6076";
 const SALT_INDEX = process.env.SALT_INDEX || "1";
-const PHONEPE_HOST = process.env.PHONEPE_HOST || "https://api-preprod.phonepe.com/apis/hermes";
+const PHONEPE_HOST =
+  process.env.PHONEPE_HOST || "https://api-preprod.phonepe.com/apis/hermes";
 
+// 🔍 To confirm where it’s hitting
 console.log("Using PHONEPE_HOST:", PHONEPE_HOST);
 
-// Payment initiation route
+// ✅ Root route (so browser shows something if you visit backend URL)
+app.get("/", (req, res) => {
+  res.send("✅ PhonePe backend is running successfully on Render!");
+});
+
+// 💰 Payment initiation route
 app.post("/pay", async (req, res) => {
   try {
-    const { amount } = req.body;
+    const { amount, name } = req.body;
 
-    // Validate amount
+    // ✅ Validate amount
     if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
-      return res.status(400).json({ error: "Invalid amount. Must be a positive number." });
+      return res
+        .status(400)
+        .json({ error: "Invalid amount. Must be a positive number." });
     }
 
     const amountInPaise = Math.round(parseFloat(amount) * 100);
-
     const MUID = "MUID-" + Date.now();
     const transactionId = "TID-" + Date.now();
 
+    // ✅ Payment payload
     const payload = {
       merchantId: MERCHANT_ID,
       merchantTransactionId: transactionId,
       merchantUserId: MUID,
       amount: amountInPaise,
-      redirectUrl: "http://localhost:3001/status/" + transactionId,
+      redirectUrl: `https://my-backend-o7yd.onrender.com/status/${transactionId}`,
       redirectMode: "POST",
       paymentInstrument: {
         type: "PAY_PAGE",
@@ -48,11 +65,16 @@ app.post("/pay", async (req, res) => {
     const payloadStr = JSON.stringify(payload);
     const payloadBase64 = Buffer.from(payloadStr).toString("base64");
 
-    const signature = crypto
-      .createHash("sha256")
-      .update(payloadBase64 + "/pg/v1/pay" + SALT_KEY)
-      .digest("hex") + "###" + SALT_INDEX;
+    // ✅ Signature
+    const signature =
+      crypto
+        .createHash("sha256")
+        .update(payloadBase64 + "/pg/v1/pay" + SALT_KEY)
+        .digest("hex") +
+      "###" +
+      SALT_INDEX;
 
+    // ✅ Send request to PhonePe
     const response = await fetch(`${PHONEPE_HOST}/pg/v1/pay`, {
       method: "POST",
       headers: {
@@ -67,21 +89,27 @@ app.post("/pay", async (req, res) => {
     console.log("PhonePe Response:", data);
 
     if (!response.ok) {
-      return res.status(response.status).json({ error: data.message || "PhonePe API error" });
+      return res
+        .status(response.status)
+        .json({ error: data.message || "PhonePe API error" });
     }
 
     const redirectUrl = data?.data?.instrumentResponse?.redirectInfo?.url;
-    res.json({ ...data, redirectUrl });
+    res.json({ success: true, redirectUrl });
   } catch (err) {
     console.error("Error initiating payment:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// Payment status route
+// 🧾 Payment status route
 app.post("/status/:id", (req, res) => {
   const { id } = req.params;
   res.send(`<h2>✅ Payment Processed for Transaction ID: ${id}</h2>`);
 });
 
-app.listen(3001, () => console.log("🚀 Server running on http://localhost:3001"));
+// 🚀 Port setup for both local & Render
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () =>
+  console.log(`🚀 Server running on port ${PORT} (Render-ready)`)
+);
