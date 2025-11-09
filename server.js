@@ -19,11 +19,11 @@ app.use(
 app.use(express.json());
 
 // ✅ Environment variables (with defaults for testing)
-const MERCHANT_ID = process.env.MERCHANT_ID || "PGTESTPAYUAT86";
-const SALT_KEY = process.env.SALT_KEY || "96434309-7796-489d-8924-ab56988a6076";
-const SALT_INDEX = process.env.SALT_INDEX || "1";
+const MERCHANT_ID = process.env.MERCHANT_ID ;
+const SALT_KEY = process.env.SALT_KEY ;
+const SALT_INDEX = process.env.SALT_INDEX ;
 const PHONEPE_HOST =
-  process.env.PHONEPE_HOST || "https://api-preprod.phonepe.com/apis/hermes";
+  process.env.PHONEPE_HOST;
 
 // 🔍 To confirm where it’s hitting
 console.log("Using PHONEPE_HOST:", PHONEPE_HOST);
